@@ -1,42 +1,47 @@
 pipeline {
-
     agent any
 
     stages {
 
         stage('Install Dependencies') {
             steps {
-                dir('/home/utkarsh/flask-app') {
-                    sh '''
-                        python3 -m venv venv
-                        venv/bin/pip install -r requirements.txt
-                        venv/bin/pip install pytest
-                    '''
-                }
+                sh '''
+                    python3 -m venv venv
+                    venv/bin/pip install -r requirements.txt
+                    venv/bin/pip install pytest
+                '''
             }
         }
 
         stage('Test') {
             steps {
-                dir('/home/utkarsh/flask-app') {
-                    sh '''
-                        venv/bin/pytest
-                    '''
-                }
+                sh '''
+                    venv/bin/pytest
+                '''
             }
         }
 
         stage('Deploy') {
             steps {
-                dir('/home/utkarsh/flask-app') {
-                    sh '''
-                        pkill -f "/home/utkarsh/flask-app/venv/bin/python /home/utkarsh/flask-app/app.py" || true
+                sh '''
+                    pkill -f "python.*app.py" || true
 
-                        nohup /home/utkarsh/flask-app/venv/bin/python \
-                            /home/utkarsh/flask-app/app.py \
-                            > /home/utkarsh/flask-app/flask.log 2>&1 &
-                    '''
-                }
+                    export JENKINS_NODE_COOKIE=dontKillMe
+
+                    nohup venv/bin/python \
+                        app.py \
+                        > flask.log 2>&1 \
+                        < /dev/null &
+                '''
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                sh '''
+                    sleep 2
+                    curl --fail http://127.0.0.1:5000
+                '''
             }
         }
     }
